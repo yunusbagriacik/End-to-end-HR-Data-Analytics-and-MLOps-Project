@@ -16,6 +16,10 @@ Production-style HR Data Science platform for:
 - Dash / Plotly
 - MLflow
 
+## Env
+- PyCharm
+- DBeaver
+
 ## Setup
 
 ```bash
