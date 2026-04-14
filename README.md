@@ -6,7 +6,7 @@ Production-style HR Data Science platform for:
 - performance analytics
 - compensation analytics
 
-## Tech Stack
+## Tech Stack & Env
 - Python
 - FastAPI
 - PostgreSQL
@@ -15,8 +15,6 @@ Production-style HR Data Science platform for:
 - scikit-learn / XGBoost
 - Dash / Plotly
 - MLflow
-
-## Env
 - PyCharm
 - DBeaver
 
