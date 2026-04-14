@@ -1,0 +1,6 @@
+-- Optional SQL initialization file.
+-- You can later add schemas such as:
+-- CREATE SCHEMA raw;
+-- CREATE SCHEMA staging;
+-- CREATE SCHEMA mart;
+-- CREATE SCHEMA ml;
