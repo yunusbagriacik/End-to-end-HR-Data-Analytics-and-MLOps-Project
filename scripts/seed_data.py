@@ -1,3 +1,10 @@
+# Bu script ilk küçük test verisini basmak içindi.
+# Sistem çalışıyor mu diye hemen küçük örnek veri görmek için oluşturuldu.
+# İlk başta sadece birkaç kayıt ekledik. Bu bize şunları test etme imkanı verdi:
+# DB bağlantısı çalışıyor mu?
+# tablo insert kabul ediyor mu?
+# DBeaver’da veri görünüyor mu?
+# Önce küçük, kontrollü veri ile sistemi doğruladık. Sonra büyük synthetic generator’a geçtik.
 from datetime import date
 from app.db.session import SessionLocal
 from app.db.models import Department, Employee

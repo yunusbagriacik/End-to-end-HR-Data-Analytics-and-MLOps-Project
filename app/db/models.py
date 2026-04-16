@@ -1,4 +1,4 @@
-#Veritabanı tablolarını Python class’ları ile tanımlamak için.
+#Veritabanı tablolarının Python class’ları ile tanımlamak için bu dosya oluşturuldu.
 from sqlalchemy import String, Integer, Float, Date, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
