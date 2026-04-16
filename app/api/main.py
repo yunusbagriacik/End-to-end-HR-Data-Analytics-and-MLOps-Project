@@ -1,9 +1,28 @@
+# Bu dosya eğitilmiş modeli daha sonra web servisi haline getirmek için yazıldı.
+"""
+FastAPI ile endpoint tanımlıyoruz:
+/health
+/predict/churn
+
+health: Sistem yaşıyor mu diye kontrol etmek için.
+predict/churn: Yeni çalışan feature’ları geldiğinde churn skoru döndürmek için.
+"""
 from fastapi import FastAPI
 from pydantic import BaseModel
 
 app = FastAPI(title="People Analytics MLOps", version="0.1.0")
 
+"""
+Pydantic request/response
 
+Bu sayede API’ye gelen veri kontrol edilir:
+eksik alan var mı?
+tip doğru mu?
+salary sayı mı?
+promoted_last_2y boolean mı?
+
+Bu production API için çok önemlidir.
+"""
 class HealthResponse(BaseModel):
     status: str
 

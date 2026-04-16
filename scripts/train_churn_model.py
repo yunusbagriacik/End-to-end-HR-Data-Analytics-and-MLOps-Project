@@ -1,5 +1,5 @@
 import os
-import joblib
+import joblib #modeli kaydetmek için
 import pandas as pd
 
 from sqlalchemy import create_engine
@@ -15,7 +15,7 @@ from app.core.config import settings
 
 
 def main():
-    engine = create_engine(settings.database_url)
+    engine = create_engine(settings.database_url) #config dosyasından gelen DB URL ile bağlantı kuruluyor.
 
     query = """
     SELECT
@@ -50,6 +50,7 @@ def main():
     ]
     binary_features = ["promoted_last_2y"]
 
+   #eksik varsa median ile doldur sonra scale et
     numeric_transformer = Pipeline(
         steps=[
             ("imputer", SimpleImputer(strategy="median")),
@@ -57,6 +58,8 @@ def main():
         ]
     )
 
+    #eksik kategorileri most_frequent ile doldur, metinleri makinenin anlayacağı sayısal vektöre çevir
+    #handle_unknown="ignore" çok önemli: API’ye yeni, daha önce görülmemiş kategori gelirse sistem patlamasın.
     categorical_transformer = Pipeline(
         steps=[
             ("imputer", SimpleImputer(strategy="most_frequent")),
@@ -64,6 +67,7 @@ def main():
         ]
     )
 
+    # Bu yapı tüm feature’lara doğru işlemi uygular.
     preprocessor = ColumnTransformer(
         transformers=[
             ("num", numeric_transformer, numeric_features),
@@ -72,6 +76,7 @@ def main():
         ]
     )
 
+    # Ham veriyi al → preprocessing yap → model uygula ve bunu tek nesne halinde sakla
     model = Pipeline(
         steps=[
             ("preprocessor", preprocessor),
@@ -103,6 +108,7 @@ def main():
     print("\nClassification Report:")
     print(classification_report(y_test, y_pred))
 
+    # Eğitilmiş model dosyaya dönüştü.Artık bu model notebook’a bağlı değil.Yani servise bağlanabilir.
     os.makedirs("artifacts", exist_ok=True)
     joblib.dump(model, "artifacts/churn_model.joblib")
     print("\nModel saved to artifacts/churn_model.joblib")

@@ -4,7 +4,7 @@
 # DB bağlantısı çalışıyor mu?
 # tablo insert kabul ediyor mu?
 # DBeaver’da veri görünüyor mu?
-# Önce küçük, kontrollü veri ile sistemi doğruladık. Sonra büyük synthetic generator’a geçtik.
+# Önce küçük, kontrollü veri ile sistemi doğruladık. Sonra büyük synthetic generator’a geçtik.Önce küçük test → sonra büyük veri
 from datetime import date
 from app.db.session import SessionLocal
 from app.db.models import Department, Employee

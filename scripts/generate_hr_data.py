@@ -1,3 +1,8 @@
+#Model eğitmek için 2 kayıt yetmezdi. Bu yüzden 3000 çalışanlık synthetic veri oluşturduk. Bu dosya:
+# Rastgele ama mantıklı çalışan özellikleri üretir
+# Bu özelliklere göre churn risk mantığı kurar
+# Buna göre attrition_flag üretir
+# DB’ye insert eder
 import random
 from datetime import date, timedelta
 
