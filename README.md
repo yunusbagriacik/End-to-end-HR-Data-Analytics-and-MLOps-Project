@@ -18,6 +18,8 @@ Production-style HR Data Science platform for:
 - PyCharm
 - DBeaver
 
+
+
 ## Setup
 
 ```bash
