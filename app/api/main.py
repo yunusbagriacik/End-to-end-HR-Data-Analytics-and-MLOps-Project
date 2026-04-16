@@ -1,19 +1,13 @@
 # Bu dosya eğitilmiş modeli daha sonra web servisi haline getirmek için yazıldı.
 """
-FastAPI ile endpoint tanımlıyoruz:
+-FastAPI ile endpoint tanımlıyoruz:
 /health
 /predict/churn
 
 health: Sistem yaşıyor mu diye kontrol etmek için.
 predict/churn: Yeni çalışan feature’ları geldiğinde churn skoru döndürmek için.
-"""
-from fastapi import FastAPI
-from pydantic import BaseModel
 
-app = FastAPI(title="People Analytics MLOps", version="0.1.0")
-
-"""
-Pydantic request/response
+-Pydantic request/response
 
 Bu sayede API’ye gelen veri kontrol edilir:
 eksik alan var mı?
@@ -23,14 +17,40 @@ promoted_last_2y boolean mı?
 
 Bu production API için çok önemlidir.
 """
+import joblib
+import pandas as pd
+
+from fastapi import FastAPI, Depends
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.db.session import SessionLocal
+from app.db.models import ChurnPredictionLog
+
+
+app = FastAPI(title="People Analytics MLOps", version="0.1.0")
+
+model = joblib.load("artifacts/churn_model.joblib")
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 class HealthResponse(BaseModel):
     status: str
 
 
 class ChurnPredictionRequest(BaseModel):
-    age: int
-    tenure_months: int
+    department_name: str
+    gender: str
+    job_title: str
     salary: float
+    performance_score: float
     engagement_score: float
     absenteeism_rate: float
     overtime_hours_monthly: float
@@ -48,27 +68,46 @@ def health():
 
 
 @app.post("/predict/churn", response_model=ChurnPredictionResponse)
-def predict_churn(payload: ChurnPredictionRequest):
-    risk = 0.15
+def predict_churn(payload: ChurnPredictionRequest, db: Session = Depends(get_db)):
+    input_df = pd.DataFrame([{
+        "department_name": payload.department_name,
+        "gender": payload.gender,
+        "job_title": payload.job_title,
+        "salary": payload.salary,
+        "performance_score": payload.performance_score,
+        "engagement_score": payload.engagement_score,
+        "absenteeism_rate": payload.absenteeism_rate,
+        "overtime_hours_monthly": payload.overtime_hours_monthly,
+        "promoted_last_2y": payload.promoted_last_2y,
+    }])
 
-    if payload.engagement_score < 3:
-        risk += 0.25
-    if payload.absenteeism_rate > 0.08:
-        risk += 0.20
-    if payload.overtime_hours_monthly > 20:
-        risk += 0.15
-    if not payload.promoted_last_2y and payload.tenure_months > 24:
-        risk += 0.10
+    churn_probability = float(model.predict_proba(input_df)[0][1])
 
-    risk = min(risk, 0.95)
-
-    label = "low"
-    if risk >= 0.70:
+    if churn_probability >= 0.70:
         label = "high"
-    elif risk >= 0.40:
+    elif churn_probability >= 0.40:
         label = "medium"
+    else:
+        label = "low"
+
+    log_row = ChurnPredictionLog(
+        department_name=payload.department_name,
+        gender=payload.gender,
+        job_title=payload.job_title,
+        salary=payload.salary,
+        performance_score=payload.performance_score,
+        engagement_score=payload.engagement_score,
+        absenteeism_rate=payload.absenteeism_rate,
+        overtime_hours_monthly=payload.overtime_hours_monthly,
+        promoted_last_2y=payload.promoted_last_2y,
+        churn_probability=churn_probability,
+        churn_risk_label=label,
+    )
+
+    db.add(log_row)
+    db.commit()
 
     return {
-        "churn_probability": round(risk, 4),
+        "churn_probability": round(churn_probability, 4),
         "churn_risk_label": label,
     }
