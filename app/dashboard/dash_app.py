@@ -1,3 +1,14 @@
+"""
+Şu an dashboard teknik olarak çalışıyor ama sadece 2 kayıt olduğu için iş değeri sınırlı görünüyor.
+
+Gerçek bir dashboard hissi için şunu yapıyorum: employees tablosundaki tüm 3000 çalışanı
+eğitilmiş modelden geçirip churn_prediction_logs tablosuna basılacak. Buna batch scoring denir.
+
+Bu çok önemli çünkü production’da genelde iki tahmin modu olur:
+real-time scoring → API ile tek kişi
+batch scoring → tüm çalışanlar için toplu skor
+"""
+
 import pandas as pd
 from sqlalchemy import create_engine
 
