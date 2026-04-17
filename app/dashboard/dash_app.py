@@ -187,6 +187,15 @@ app.layout = html.Div(
             filter_action="native",
             sort_action="native",
         ),
+            html.Br(),
+
+            html.H3("Insights"),
+            html.Div(id="insights-panel", style={
+                "padding": "15px",
+                "border": "1px solid #ddd",
+                "borderRadius": "10px",
+                "backgroundColor": "#f9f9f9"
+            }),
     ],
 )
 
@@ -196,6 +205,7 @@ app.layout = html.Div(
     Output("department-filter", "value"),
     Input("refresh-button", "n_clicks"),
     Input("auto-refresh", "n_intervals"),
+
 )
 def populate_department_filter(_, __):
     df = load_prediction_logs()
@@ -220,6 +230,7 @@ def populate_department_filter(_, __):
     Output("top-risk-table", "columns"),
     Output("predictions-table", "data"),
     Output("predictions-table", "columns"),
+    Output("insights-panel", "children"),
     Input("refresh-button", "n_clicks"),
     Input("auto-refresh", "n_intervals"),
     Input("risk-filter", "value"),
@@ -347,6 +358,23 @@ def update_dashboard(_, __, risk_filter, department_filter, min_probability):
     table_columns = [{"name": col, "id": col} for col in table_df.columns]
     table_data = table_df.to_dict("records")
 
+    insights = generate_insights(filtered_df)
+
+    insight_elements = [
+        html.Div(
+            [
+                html.P(f"{item['title']}", style={"fontWeight": "bold"}),
+                html.P(f"Action: {item['action']}", style={"color": "#555"}),
+            ],
+            style={
+                "marginBottom": "10px",
+                "padding": "10px",
+                "borderBottom": "1px solid #eee"
+            }
+        )
+        for item in insights
+    ]
+
     return (
         summary_cards,
         risk_fig,
@@ -357,8 +385,61 @@ def update_dashboard(_, __, risk_filter, department_filter, min_probability):
         top_columns,
         table_data,
         table_columns,
+        insight_elements
     )
 
+def generate_insights(df: pd.DataFrame) -> list:
+    insights = []
+
+    if df.empty:
+        return ["No data available."]
+
+    dept_risk = df.groupby("department_name")["churn_probability"].mean()
+    top_dept = dept_risk.idxmax()
+    top_dept_val = round(dept_risk.max(), 4)
+
+    insights.append({
+        "title": f"{top_dept} department has highest risk ({top_dept_val})",
+        "action": "Investigate workload, compensation and team conditions in this department."
+    })
+
+    low_eng = df[df["engagement_score"] < 3]["churn_probability"].mean()
+    high_eng = df[df["engagement_score"] >= 4]["churn_probability"].mean()
+
+    if pd.notna(low_eng) and pd.notna(high_eng) and low_eng > high_eng:
+        insights.append({
+            "title": "Low engagement strongly increases churn",
+            "action": "Launch engagement surveys, 1:1 meetings, and feedback programs."
+        })
+
+    high_ot = df[df["overtime_hours_monthly"] > 20]["churn_probability"].mean()
+    low_ot = df[df["overtime_hours_monthly"] <= 10]["churn_probability"].mean()
+
+    if pd.notna(high_ot) and pd.notna(low_ot) and high_ot > low_ot:
+        insights.append({
+            "title": "High overtime is a churn driver",
+            "action": "Balance workloads and reduce overtime pressure."
+        })
+
+    low_salary = df[df["salary"] < 40000]["churn_probability"].mean()
+    high_salary = df[df["salary"] > 70000]["churn_probability"].mean()
+
+    if pd.notna(low_salary) and pd.notna(high_salary) and low_salary > high_salary:
+        insights.append({
+            "title": "Low salary group has higher churn",
+            "action": "Review compensation bands and adjust salary structure."
+        })
+
+    no_promo = df[df["promoted_last_2y"] == False]["churn_probability"].mean()
+    promo = df[df["promoted_last_2y"] == True]["churn_probability"].mean()
+
+    if pd.notna(no_promo) and pd.notna(promo) and no_promo > promo:
+        insights.append({
+            "title": "Lack of promotion increases churn",
+            "action": "Create clear career progression and promotion plans."
+        })
+
+    return insights
 
 if __name__ == "__main__":
     app.run(debug=True, port=8050)
