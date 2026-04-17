@@ -53,4 +53,4 @@ class ChurnPredictionLog(Base):
 
     churn_probability: Mapped[float] = mapped_column(Float, nullable=False)
     churn_risk_label: Mapped[str] = mapped_column(String(20), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(), nullable=False)
