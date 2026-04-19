@@ -70,7 +70,7 @@ def main():
         "engagement_score",
         "absenteeism_rate",
         "overtime_hours_monthly",
-        "salary_pct_in_dept",
+        "salary_pct_in_dept",ç
         "dept_attrition_rate",
         "engagement_x_overtime",
         "dept_market_risk"
