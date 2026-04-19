@@ -22,7 +22,7 @@ from app.core.config import settings
 engine = create_engine(settings.database_url)
 
 
-def load_prediction_logs() -> pd.DataFrame:
+def load_batch_prediction_logs() -> pd.DataFrame:
     query = """
     SELECT
         id,
@@ -37,8 +37,34 @@ def load_prediction_logs() -> pd.DataFrame:
         promoted_last_2y,
         churn_probability,
         churn_risk_label,
+        prediction_source,
         created_at
     FROM churn_prediction_logs
+    WHERE prediction_source = 'batch'
+    ORDER BY created_at DESC
+    """
+    return pd.read_sql(query, engine)
+
+
+def load_api_prediction_logs() -> pd.DataFrame:
+    query = """
+    SELECT
+        id,
+        department_name,
+        gender,
+        job_title,
+        salary,
+        performance_score,
+        engagement_score,
+        absenteeism_rate,
+        overtime_hours_monthly,
+        promoted_last_2y,
+        churn_probability,
+        churn_risk_label,
+        prediction_source,
+        created_at
+    FROM churn_prediction_logs
+    WHERE prediction_source = 'api'
     ORDER BY created_at DESC
     """
     return pd.read_sql(query, engine)
@@ -59,6 +85,65 @@ def build_summary_card(title: str, value: str):
             "boxShadow": "0 1px 4px rgba(0,0,0,0.08)",
         },
     )
+
+
+def generate_insights(df: pd.DataFrame) -> list:
+    insights = []
+
+    if df.empty:
+        return [
+            {
+                "title": "No data available",
+                "action": "Generate predictions through the API or batch scoring process.",
+            }
+        ]
+
+    dept_risk = df.groupby("department_name")["churn_probability"].mean()
+    top_dept = dept_risk.idxmax()
+    top_dept_val = round(dept_risk.max(), 4)
+
+    insights.append({
+        "title": f"{top_dept} department has highest risk ({top_dept_val})",
+        "action": "Investigate workload, compensation, and team conditions in this department."
+    })
+
+    low_eng = df[df["engagement_score"] < 3]["churn_probability"].mean()
+    high_eng = df[df["engagement_score"] >= 4]["churn_probability"].mean()
+
+    if pd.notna(low_eng) and pd.notna(high_eng) and low_eng > high_eng:
+        insights.append({
+            "title": "Low engagement strongly increases churn",
+            "action": "Launch engagement surveys, 1:1 meetings, and feedback programs."
+        })
+
+    high_ot = df[df["overtime_hours_monthly"] > 20]["churn_probability"].mean()
+    low_ot = df[df["overtime_hours_monthly"] <= 10]["churn_probability"].mean()
+
+    if pd.notna(high_ot) and pd.notna(low_ot) and high_ot > low_ot:
+        insights.append({
+            "title": "High overtime is a churn driver",
+            "action": "Balance workloads and reduce overtime pressure."
+        })
+
+    low_salary = df[df["salary"] < 40000]["churn_probability"].mean()
+    high_salary = df[df["salary"] > 70000]["churn_probability"].mean()
+
+    if pd.notna(low_salary) and pd.notna(high_salary) and low_salary > high_salary:
+        insights.append({
+            "title": "Low salary group has higher churn",
+            "action": "Review compensation bands and adjust salary structure."
+        })
+
+    no_promo = df[df["promoted_last_2y"] == False]["churn_probability"].mean()
+    promo = df[df["promoted_last_2y"] == True]["churn_probability"].mean()
+
+    if pd.notna(no_promo) and pd.notna(promo) and no_promo > promo:
+        insights.append({
+            "title": "Lack of promotion increases churn",
+            "action": "Create clear career progression and promotion plans."
+        })
+
+    return insights
 
 
 app = Dash(__name__)
@@ -100,7 +185,7 @@ app.layout = html.Div(
                         html.Label("Department Filter"),
                         dcc.Dropdown(
                             id="department-filter",
-                            options=[],
+                            options=[{"label": "All", "value": "all"}],
                             value="all",
                             clearable=False,
                         ),
@@ -187,15 +272,43 @@ app.layout = html.Div(
             filter_action="native",
             sort_action="native",
         ),
-            html.Br(),
 
-            html.H3("Insights"),
-            html.Div(id="insights-panel", style={
+        html.Br(),
+
+        html.H3("Insights"),
+        html.Div(
+            id="insights-panel",
+            style={
                 "padding": "15px",
                 "border": "1px solid #ddd",
                 "borderRadius": "10px",
                 "backgroundColor": "#f9f9f9"
-            }),
+            }
+        ),
+
+        html.Hr(),
+        html.H2("Realtime API Predictions"),
+
+        html.Div(
+            id="api-summary-cards",
+            style={
+                "display": "flex",
+                "gap": "15px",
+                "marginBottom": "20px",
+                "flexWrap": "wrap"
+            }
+        ),
+
+        dcc.Graph(id="api-risk-distribution-chart"),
+
+        html.H3("Recent API Predictions"),
+        dash_table.DataTable(
+            id="api-predictions-table",
+            page_size=10,
+            style_table={"overflowX": "auto"},
+            style_cell={"textAlign": "left", "padding": "8px"},
+            style_header={"fontWeight": "bold"},
+        ),
     ],
 )
 
@@ -205,10 +318,9 @@ app.layout = html.Div(
     Output("department-filter", "value"),
     Input("refresh-button", "n_clicks"),
     Input("auto-refresh", "n_intervals"),
-
 )
 def populate_department_filter(_, __):
-    df = load_prediction_logs()
+    df = load_batch_prediction_logs()
 
     if df.empty:
         return [{"label": "All", "value": "all"}], "all"
@@ -231,6 +343,10 @@ def populate_department_filter(_, __):
     Output("predictions-table", "data"),
     Output("predictions-table", "columns"),
     Output("insights-panel", "children"),
+    Output("api-summary-cards", "children"),
+    Output("api-risk-distribution-chart", "figure"),
+    Output("api-predictions-table", "data"),
+    Output("api-predictions-table", "columns"),
     Input("refresh-button", "n_clicks"),
     Input("auto-refresh", "n_intervals"),
     Input("risk-filter", "value"),
@@ -238,10 +354,11 @@ def populate_department_filter(_, __):
     Input("probability-slider", "value"),
 )
 def update_dashboard(_, __, risk_filter, department_filter, min_probability):
-    df = load_prediction_logs()
+    df = load_batch_prediction_logs()
+
+    empty_fig = px.bar(title="No data yet")
 
     if df.empty:
-        empty_fig = px.bar(title="No data yet")
         return (
             [html.Div("No prediction data yet.")],
             empty_fig,
@@ -250,6 +367,11 @@ def update_dashboard(_, __, risk_filter, department_filter, min_probability):
             empty_fig,
             [],
             [],
+            [],
+            [],
+            [html.Div("No insights available yet.")],
+            [html.Div("No API prediction data yet.")],
+            empty_fig,
             [],
             [],
         )
@@ -265,7 +387,40 @@ def update_dashboard(_, __, risk_filter, department_filter, min_probability):
     filtered_df = filtered_df[filtered_df["churn_probability"] >= min_probability]
 
     if filtered_df.empty:
-        empty_fig = px.bar(title="No data for selected filters")
+        no_data_fig = px.bar(title="No data for selected filters")
+        api_df = load_api_prediction_logs()
+
+        if not api_df.empty:
+            api_total = len(api_df)
+            api_high_risk = len(api_df[api_df["churn_risk_label"] == "high"])
+            api_avg_prob = round(api_df["churn_probability"].mean(), 4)
+
+            api_summary_cards = [
+                build_summary_card("Total API Predictions", str(api_total)),
+                build_summary_card("High Risk Predictions", str(api_high_risk)),
+                build_summary_card("Avg API Churn Probability", str(api_avg_prob)),
+            ]
+
+            api_risk_counts = api_df["churn_risk_label"].value_counts().reset_index()
+            api_risk_counts.columns = ["risk_label", "count"]
+
+            api_risk_fig = px.bar(
+                api_risk_counts,
+                x="risk_label",
+                y="count",
+                title="API Risk Distribution"
+            )
+
+            api_table_df = api_df.copy()
+            api_table_df["created_at"] = api_table_df["created_at"].astype(str)
+            api_table_data = api_table_df.head(10).to_dict("records")
+            api_table_columns = [{"name": col, "id": col} for col in api_table_df.columns]
+        else:
+            api_summary_cards = [html.Div("No API prediction data yet.")]
+            api_risk_fig = no_data_fig
+            api_table_data = []
+            api_table_columns = []
+
         return (
             [
                 build_summary_card("Total Predictions", "0"),
@@ -273,14 +428,19 @@ def update_dashboard(_, __, risk_filter, department_filter, min_probability):
                 build_summary_card("High Risk Count", "0"),
                 build_summary_card("Selected Department", str(department_filter)),
             ],
-            empty_fig,
-            empty_fig,
-            empty_fig,
-            empty_fig,
+            no_data_fig,
+            no_data_fig,
+            no_data_fig,
+            no_data_fig,
             [],
             [],
             [],
             [],
+            [html.Div("No insights available for selected filters.")],
+            api_summary_cards,
+            api_risk_fig,
+            api_table_data,
+            api_table_columns,
         )
 
     total_predictions = len(filtered_df)
@@ -295,11 +455,7 @@ def update_dashboard(_, __, risk_filter, department_filter, min_probability):
         build_summary_card("Selected Department", selected_department),
     ]
 
-    risk_counts = (
-        filtered_df["churn_risk_label"]
-        .value_counts()
-        .reset_index()
-    )
+    risk_counts = filtered_df["churn_risk_label"].value_counts().reset_index()
     risk_counts.columns = ["risk_label", "count"]
 
     risk_fig = px.bar(
@@ -348,22 +504,19 @@ def update_dashboard(_, __, risk_filter, department_filter, min_probability):
         .copy()
     )
     top_risk_df["created_at"] = top_risk_df["created_at"].astype(str)
-
     top_columns = [{"name": col, "id": col} for col in top_risk_df.columns]
     top_data = top_risk_df.to_dict("records")
 
     table_df = filtered_df.copy()
     table_df["created_at"] = table_df["created_at"].astype(str)
-
     table_columns = [{"name": col, "id": col} for col in table_df.columns]
     table_data = table_df.to_dict("records")
 
     insights = generate_insights(filtered_df)
-
     insight_elements = [
         html.Div(
             [
-                html.P(f"{item['title']}", style={"fontWeight": "bold"}),
+                html.P(item["title"], style={"fontWeight": "bold"}),
                 html.P(f"Action: {item['action']}", style={"color": "#555"}),
             ],
             style={
@@ -375,6 +528,43 @@ def update_dashboard(_, __, risk_filter, department_filter, min_probability):
         for item in insights
     ]
 
+    api_df = load_api_prediction_logs()
+
+    api_total = len(api_df)
+    api_high_risk = len(api_df[api_df["churn_risk_label"] == "high"]) if not api_df.empty else 0
+    api_avg_prob = round(api_df["churn_probability"].mean(), 4) if not api_df.empty else 0
+
+    api_summary_cards = [
+        build_summary_card("Total API Predictions", str(api_total)),
+        build_summary_card("High Risk Predictions", str(api_high_risk)),
+        build_summary_card("Avg API Churn Probability", str(api_avg_prob)),
+    ]
+
+    if not api_df.empty:
+        api_risk_counts = api_df["churn_risk_label"].value_counts().reset_index()
+        api_risk_counts.columns = ["risk_label", "count"]
+
+        api_risk_fig = px.bar(
+            api_risk_counts,
+            x="risk_label",
+            y="count",
+            title="API Risk Distribution"
+        )
+
+        api_table_df = api_df.copy()
+        api_table_df["created_at"] = api_table_df["created_at"].astype(str)
+        api_table_data = api_table_df.head(10).to_dict("records")
+        api_table_columns = [{"name": col, "id": col} for col in api_table_df.columns]
+    else:
+        api_risk_fig = px.bar(
+            pd.DataFrame({"risk_label": [], "count": []}),
+            x="risk_label",
+            y="count",
+            title="API Risk Distribution"
+        )
+        api_table_data = []
+        api_table_columns = []
+
     return (
         summary_cards,
         risk_fig,
@@ -385,61 +575,13 @@ def update_dashboard(_, __, risk_filter, department_filter, min_probability):
         top_columns,
         table_data,
         table_columns,
-        insight_elements
+        insight_elements,
+        api_summary_cards,
+        api_risk_fig,
+        api_table_data,
+        api_table_columns,
     )
 
-def generate_insights(df: pd.DataFrame) -> list:
-    insights = []
-
-    if df.empty:
-        return ["No data available."]
-
-    dept_risk = df.groupby("department_name")["churn_probability"].mean()
-    top_dept = dept_risk.idxmax()
-    top_dept_val = round(dept_risk.max(), 4)
-
-    insights.append({
-        "title": f"{top_dept} department has highest risk ({top_dept_val})",
-        "action": "Investigate workload, compensation and team conditions in this department."
-    })
-
-    low_eng = df[df["engagement_score"] < 3]["churn_probability"].mean()
-    high_eng = df[df["engagement_score"] >= 4]["churn_probability"].mean()
-
-    if pd.notna(low_eng) and pd.notna(high_eng) and low_eng > high_eng:
-        insights.append({
-            "title": "Low engagement strongly increases churn",
-            "action": "Launch engagement surveys, 1:1 meetings, and feedback programs."
-        })
-
-    high_ot = df[df["overtime_hours_monthly"] > 20]["churn_probability"].mean()
-    low_ot = df[df["overtime_hours_monthly"] <= 10]["churn_probability"].mean()
-
-    if pd.notna(high_ot) and pd.notna(low_ot) and high_ot > low_ot:
-        insights.append({
-            "title": "High overtime is a churn driver",
-            "action": "Balance workloads and reduce overtime pressure."
-        })
-
-    low_salary = df[df["salary"] < 40000]["churn_probability"].mean()
-    high_salary = df[df["salary"] > 70000]["churn_probability"].mean()
-
-    if pd.notna(low_salary) and pd.notna(high_salary) and low_salary > high_salary:
-        insights.append({
-            "title": "Low salary group has higher churn",
-            "action": "Review compensation bands and adjust salary structure."
-        })
-
-    no_promo = df[df["promoted_last_2y"] == False]["churn_probability"].mean()
-    promo = df[df["promoted_last_2y"] == True]["churn_probability"].mean()
-
-    if pd.notna(no_promo) and pd.notna(promo) and no_promo > promo:
-        insights.append({
-            "title": "Lack of promotion increases churn",
-            "action": "Create clear career progression and promotion plans."
-        })
-
-    return insights
 
 if __name__ == "__main__":
     app.run(debug=True, port=8050)

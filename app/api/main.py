@@ -81,7 +81,8 @@ def predict_churn(payload: ChurnPredictionRequest, db: Session = Depends(get_db)
         overtime_hours_monthly=payload.overtime_hours_monthly,
         promoted_last_2y=payload.promoted_last_2y,
         churn_probability=float(probability),
-        churn_risk_label=risk_level
+        churn_risk_label=risk_level,
+        prediction_source = "api"
     )
 
     db.add(log_row)

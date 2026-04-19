@@ -57,6 +57,8 @@ def main():
                 promoted_last_2y=bool(row["promoted_last_2y"]),
                 churn_probability=float(row["churn_probability"]),
                 churn_risk_label=row["churn_risk_label"],
+                prediction_source="batch"
+
             )
             db.add(log_row)
 

@@ -50,7 +50,7 @@ class ChurnPredictionLog(Base):
     absenteeism_rate: Mapped[float] = mapped_column(Float, nullable=False)
     overtime_hours_monthly: Mapped[float] = mapped_column(Float, nullable=False)
     promoted_last_2y: Mapped[bool] = mapped_column(Boolean, nullable=False)
-
     churn_probability: Mapped[float] = mapped_column(Float, nullable=False)
     churn_risk_label: Mapped[str] = mapped_column(String(20), nullable=False)
+    prediction_source: Mapped[str] = mapped_column(String, nullable=False, default="api")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now(), nullable=False)
