@@ -1,22 +1,3 @@
-# Bu dosya eğitilmiş modeli daha sonra web servisi haline getirmek için yazıldı.
-"""
--FastAPI ile endpoint tanımlıyoruz:
-/health
-/predict/churn
-
-health: Sistem yaşıyor mu diye kontrol etmek için.
-predict/churn: Yeni çalışan feature’ları geldiğinde churn skoru döndürmek için.
-
--Pydantic request/response
-
-Bu sayede API’ye gelen veri kontrol edilir:
-eksik alan var mı?
-tip doğru mu?
-salary sayı mı?
-promoted_last_2y boolean mı?
-
-Bu production API için çok önemlidir.
-"""
 import joblib
 import pandas as pd
 
@@ -26,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
 from app.db.models import ChurnPredictionLog
-
+from app.ml.feature_builder import add_engineered_features
 
 app = FastAPI(title="People Analytics MLOps", version="0.1.0")
 
@@ -59,7 +40,8 @@ class ChurnPredictionRequest(BaseModel):
 
 class ChurnPredictionResponse(BaseModel):
     churn_probability: float
-    churn_risk_label: str
+    predicted_label: int
+    risk_level: str
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -81,14 +63,12 @@ def predict_churn(payload: ChurnPredictionRequest, db: Session = Depends(get_db)
         "promoted_last_2y": payload.promoted_last_2y,
     }])
 
-    churn_probability = float(model.predict_proba(input_df)[0][1])
+    input_df = add_engineered_features(input_df)
 
-    if churn_probability >= 0.70:
-        label = "high"
-    elif churn_probability >= 0.40:
-        label = "medium"
-    else:
-        label = "low"
+    probability = model.predict_proba(input_df)[0][1]
+    prediction = int(probability >= 0.33692988753318787)
+
+    risk_level = "high" if probability >= 0.7 else "medium" if probability >= 0.4 else "low"
 
     log_row = ChurnPredictionLog(
         department_name=payload.department_name,
@@ -100,14 +80,29 @@ def predict_churn(payload: ChurnPredictionRequest, db: Session = Depends(get_db)
         absenteeism_rate=payload.absenteeism_rate,
         overtime_hours_monthly=payload.overtime_hours_monthly,
         promoted_last_2y=payload.promoted_last_2y,
-        churn_probability=churn_probability,
-        churn_risk_label=label,
+        churn_probability=float(probability),
+        churn_risk_label=risk_level
     )
 
     db.add(log_row)
     db.commit()
 
     return {
-        "churn_probability": round(churn_probability, 4),
-        "churn_risk_label": label,
+        "churn_probability": round(float(probability), 4),
+        "predicted_label": prediction,
+        "risk_level": risk_level
     }
+
+"""
+{
+  "department_name": "Sales",
+  "gender": "M",
+  "job_title": "Sales Analyst",
+  "salary": 38000,
+  "performance_score": 2.7,
+  "engagement_score": 2.4,
+  "absenteeism_rate": 0.12,
+  "overtime_hours_monthly": 26,
+  "promoted_last_2y": false
+}
+"""

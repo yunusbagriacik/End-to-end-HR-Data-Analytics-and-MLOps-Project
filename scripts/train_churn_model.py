@@ -11,10 +11,10 @@ from sklearn.impute import SimpleImputer
 from sklearn.metrics import roc_auc_score, classification_report, confusion_matrix, f1_score,precision_recall_curve
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 
 from app.core.config import settings
+from app.ml.feature_builder import add_engineered_features
 
 
 def main():
@@ -39,26 +39,7 @@ def main():
     """
 
     df = pd.read_sql(query, engine)
-
-    # -----------------------------
-    # Feature Engineering
-    # -----------------------------
-    df["salary_pct_in_dept"] = df.groupby("department_name")["salary"].rank(pct=True)
-
-    dept_attrition = df.groupby("department_name")["attrition_flag"].mean()
-    df["dept_attrition_rate"] = df["department_name"].map(dept_attrition)
-
-    df["engagement_x_overtime"] = df["engagement_score"] * df["overtime_hours_monthly"]
-
-    department_market_risk = {
-        "Sales": 0.8,
-        "Technology": 0.4,
-        "HR": 0.5,
-        "Finance": 0.6,
-        "Operations": 0.7
-    }
-
-    df["dept_market_risk"] = df["department_name"].map(department_market_risk)
+    df = add_engineered_features(df)
 
     X = df.drop(columns=["employee_code", "attrition_flag"])
     y = df["attrition_flag"].astype(int)
@@ -70,7 +51,7 @@ def main():
         "engagement_score",
         "absenteeism_rate",
         "overtime_hours_monthly",
-        "salary_pct_in_dept",ç
+        "salary_pct_in_dept",
         "dept_attrition_rate",
         "engagement_x_overtime",
         "dept_market_risk"
@@ -157,7 +138,7 @@ def main():
         mlflow.log_param("colsample_bytree", 0.8)
         mlflow.log_param(
             "feature_set",
-            "baseline + salary_pct_in_dept + dept_attrition_rate + engagement_x_overtime"
+            "baseline + salary_pct_in_dept + dept_attrition_rate + engagement_x_overtime + dept_market_risk"
         )
 
         mlflow.log_metric("roc_auc", auc)
