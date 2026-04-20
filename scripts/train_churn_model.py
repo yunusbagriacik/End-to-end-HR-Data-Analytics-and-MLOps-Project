@@ -3,6 +3,7 @@ import joblib
 import pandas as pd
 import mlflow
 import mlflow.sklearn
+from mlflow.models import infer_signature
 
 from sqlalchemy import create_engine
 from sklearn.compose import ColumnTransformer
@@ -140,13 +141,23 @@ def main():
             "feature_set",
             "baseline + salary_pct_in_dept + dept_attrition_rate + engagement_x_overtime + dept_market_risk"
         )
-
         mlflow.log_metric("roc_auc", auc)
         mlflow.log_metric("f1_score", f1)
         mlflow.log_metric("best_threshold", float(best_threshold))
 
-        mlflow.sklearn.log_model(model, "model")
+        input_example = X_train.head(3).copy()
+        signature = infer_signature(X_train, model.predict_proba(X_train))
+
+        mlflow.sklearn.log_model(
+            sk_model=model,
+            artifact_path="model",
+            signature=signature,
+            input_example=input_example,
+            registered_model_name="hr_churn_model"
+        )
 
 
 if __name__ == "__main__":
+    mlflow.set_tracking_uri("file:./mlruns")
+    mlflow.set_experiment("churn_prediction")
     main()

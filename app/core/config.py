@@ -8,6 +8,10 @@ class Settings(BaseSettings): #Bu sınıf, çevresel değişkenleri Python nesne
     database_url: str
     churn_threshold: float = 0.33692988753318787
 
+    mlflow_tracking_uri: str = "file:/app/mlruns"
+    mlflow_model_name: str = "hr_churn_model"
+    mlflow_model_alias: str = "production"
+
 
     model_config = SettingsConfigDict(
         env_file=os.getenv("ENV_FILE", ".env"),

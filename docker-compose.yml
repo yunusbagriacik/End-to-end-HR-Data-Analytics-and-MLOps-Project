@@ -22,8 +22,13 @@ services:
       - postgres
     env_file:
       - .env.docker
+    environment:
+      MLFLOW_TRACKING_URI: file:/app/mlruns
     ports:
       - "8000:8000"
+    volumes:
+      - .:/app
+      - ./mlruns:/app/mlruns
     restart: always
 
   dashboard:

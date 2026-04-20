@@ -1,5 +1,8 @@
-import joblib
+import os
 import pandas as pd
+import mlflow.sklearn
+import mlflow.pyfunc
+import joblib
 
 from fastapi import FastAPI, Depends
 from pydantic import BaseModel
@@ -12,7 +15,8 @@ from app.ml.feature_builder import add_engineered_features
 
 app = FastAPI(title="People Analytics MLOps", version="0.1.0")
 
-model = joblib.load("artifacts/churn_model.joblib")
+mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
+model = mlflow.sklearn.load_model("models:/hr_churn_model@production")
 
 
 def get_db():
@@ -66,7 +70,7 @@ def predict_churn(payload: ChurnPredictionRequest, db: Session = Depends(get_db)
 
     input_df = add_engineered_features(input_df)
 
-    probability = model.predict_proba(input_df)[0][1]
+    probability = float(model.predict_proba(input_df)[0][1])
     prediction = int(probability >= settings.churn_threshold)
 
 
