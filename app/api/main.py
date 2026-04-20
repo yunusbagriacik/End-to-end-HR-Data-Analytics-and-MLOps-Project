@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-import mlflow.sklearn
+import mlflow
 import mlflow.pyfunc
 import joblib
 
@@ -15,8 +15,8 @@ from app.ml.feature_builder import add_engineered_features
 
 app = FastAPI(title="People Analytics MLOps", version="0.1.0")
 
-mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
-model = mlflow.sklearn.load_model("models:/hr_churn_model@production")
+mlflow.set_tracking_uri("file:/app/mlruns")
+model = joblib.load("artifacts/churn_model.joblib")
 
 
 def get_db():

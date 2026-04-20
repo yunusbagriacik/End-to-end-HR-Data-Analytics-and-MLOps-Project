@@ -158,6 +158,6 @@ def main():
 
 
 if __name__ == "__main__":
-    mlflow.set_tracking_uri("file:./mlruns")
+    mlflow.set_tracking_uri("file:/app/mlruns")
     mlflow.set_experiment("churn_prediction")
     main()
