@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.db.models import ChurnPredictionLog
+from app.ml.feature_builder import add_engineered_features
 
 
 model = joblib.load("artifacts/churn_model.joblib")
@@ -32,8 +33,23 @@ def main():
     """
 
     df = pd.read_sql(query, engine)
+    df = add_engineered_features(df)
 
-    prediction_input = df.drop(columns=["employee_code"]).copy()
+    prediction_input = df[[
+        "department_name",
+        "gender",
+        "job_title",
+        "salary",
+        "performance_score",
+        "engagement_score",
+        "absenteeism_rate",
+        "overtime_hours_monthly",
+        "promoted_last_2y",
+        "salary_pct_in_dept",
+        "dept_attrition_rate",
+        "engagement_x_overtime",
+        "dept_market_risk",
+    ]]
     probabilities = model.predict_proba(prediction_input)[:, 1]
 
     df["churn_probability"] = probabilities

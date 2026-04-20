@@ -2,20 +2,42 @@ services:
   postgres:
     image: postgres:16
     container_name: people_analytics_postgres
+    env_file:
+      - .env.docker
     environment:
-      POSTGRES_USER: hr_user
-      POSTGRES_PASSWORD: hr_password
-      POSTGRES_DB: people_analytics
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "55432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hr_user -d people_analytics"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    restart: always
+
+  api:
+    build: .
+    container_name: people_analytics_api
+    command: uvicorn app.api.main:app --host 0.0.0.0 --port 8000
+    depends_on:
+      - postgres
+    env_file:
+      - .env.docker
+    ports:
+      - "8000:8000"
+    restart: always
+
+  dashboard:
+    build: .
+    container_name: people_analytics_dashboard
+    command: python -m app.dashboard.dash_app
+    depends_on:
+      - postgres
+      - api
+    env_file:
+      - .env.docker
+    ports:
+      - "8050:8050"
+    restart: always
 
 volumes:
   postgres_data:

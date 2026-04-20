@@ -5,6 +5,7 @@ from fastapi import FastAPI, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db.session import SessionLocal
 from app.db.models import ChurnPredictionLog
 from app.ml.feature_builder import add_engineered_features
@@ -66,7 +67,8 @@ def predict_churn(payload: ChurnPredictionRequest, db: Session = Depends(get_db)
     input_df = add_engineered_features(input_df)
 
     probability = model.predict_proba(input_df)[0][1]
-    prediction = int(probability >= 0.33692988753318787)
+    prediction = int(probability >= settings.churn_threshold)
+
 
     risk_level = "high" if probability >= 0.7 else "medium" if probability >= 0.4 else "low"
 
