@@ -15,8 +15,42 @@ from app.ml.feature_builder import add_engineered_features
 
 app = FastAPI(title="People Analytics MLOps", version="0.1.0")
 
-mlflow.set_tracking_uri("file:/app/mlruns")
-model = joblib.load("artifacts/churn_model.joblib")
+""" app = FastAPI(
+    title="People Analytics MLOps",
+    version="0.1.0",
+    root_path="/api",
+    docs_url="/docs",
+    openapi_url="/openapi.json"
+)
+"""
+
+#model = joblib.load("artifacts/churn_model.joblib")
+
+def load_model():
+    mlflow.set_tracking_uri = settings.mlflow_model_uri
+    model_uri = settings.mlflow_model_uri
+    local_model_path = settings.local_model_path
+
+    try:
+        print(f"[MODEL] Trying MLflow Registry: {model_uri}")
+        model = mlflow.sklearn.load_model(model_uri)
+        print("[MODEL] Loaded from MLflow Registry")
+        return model, "mlflow_registry"
+    except Exception as e:
+        print(f"[MODEL] MLflow load failed: {e}")
+
+    try:
+        print(f"[MODEL] Trying local joblib: {local_model_path}")
+        model = joblib.load(local_model_path)
+        print("[MODEL] Loaded from local joblib")
+        return model, "local_joblib"
+    except Exception as e:
+        print(f"[MODEL] Local joblib load failed: {e}")
+
+    raise RuntimeError("No model could be loaded from MLflow Registry or local joblib.")
+
+
+model, model_source = load_model()
 
 
 def get_db():
@@ -29,6 +63,7 @@ def get_db():
 
 class HealthResponse(BaseModel):
     status: str
+    source: str
 
 
 class ChurnPredictionRequest(BaseModel):
@@ -51,7 +86,10 @@ class ChurnPredictionResponse(BaseModel):
 
 @app.get("/health", response_model=HealthResponse)
 def health():
-    return {"status": "ok"}
+    return {
+            "status": "ok",
+            "source": model_source
+            }
 
 
 @app.post("/predict/churn", response_model=ChurnPredictionResponse)

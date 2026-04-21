@@ -44,5 +44,19 @@ services:
       - "8050:8050"
     restart: always
 
+
+  nginx:
+      image: nginx:latest
+      container_name: people_analytics_nginx
+      ports:
+        - "80:80"
+      volumes:
+        - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      depends_on:
+        - api
+        - dashboard
+
 volumes:
   postgres_data:
+
+
