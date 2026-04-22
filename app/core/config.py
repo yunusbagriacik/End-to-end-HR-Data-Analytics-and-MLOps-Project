@@ -9,8 +9,10 @@ class Settings(BaseSettings): #Bu sınıf, çevresel değişkenleri Python nesne
     churn_threshold: float = 0.33692988753318787
 
     mlflow_tracking_uri: str = "file:///app/mlruns"
+    mlflow_model_name: str = "hr_churn_model"
     mlflow_model_uri: str = "models:/hr_churn_model@production"
     local_model_path: str = "artifacts/churn_model.joblib"
+    mlflow_model_alias: str = "production"
 
 
     model_config = SettingsConfigDict(
