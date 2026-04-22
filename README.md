@@ -6,11 +6,13 @@ Production-style HR Data Science platform for:
 - performance analytics
 - compensation analytics
 
+To sum up, an end-to-end MLOps system that predicts churn using HR data stored on PostgreSQL, versioned with MLflow, served with FastAPI, monitored with Dash, and orchestrated with Docker + Nginx.
+
 ## Tech Stack & Env
 - Python
 - FastAPI
 - PostgreSQL
-- Docker Compose
+- Docker
 - SQLAlchemy
 - scikit-learn / XGBoost
 - Dash / Plotly
