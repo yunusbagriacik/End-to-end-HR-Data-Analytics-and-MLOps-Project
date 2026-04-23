@@ -5,7 +5,7 @@ import os
 
 class Settings(BaseSettings): #Bu sınıf, çevresel değişkenleri Python nesnesine çevirir.
     ##Bunlar .env içindeki değerlerle doldurulur.
-    database_url: str
+    database_url: str | None = None
     churn_threshold: float = 0.33692988753318787
 
     mlflow_tracking_uri: str = "file:///app/mlruns"

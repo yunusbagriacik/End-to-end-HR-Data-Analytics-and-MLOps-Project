@@ -2,13 +2,13 @@ import pandas as pd
 import mlflow
 import joblib
 
-from fastapi import FastAPI, Depends
-from pydantic import BaseModel, ConfigDict
-from sqlalchemy.orm import Session
+from fastapi import FastAPI
+from pydantic import BaseModel
+#from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.db.session import SessionLocal
-from app.db.models import ChurnPredictionLog
+#from app.db.session import SessionLocal
+#from app.db.models import ChurnPredictionLog
 from app.ml.feature_builder import add_engineered_features
 
 app = FastAPI(title="People Analytics MLOps", version="0.1.0")
@@ -40,19 +40,19 @@ def load_model():
 model, model_source = load_model()
 
 
-def get_db():
+"""def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
-
+"""
 
 class HealthResponse(BaseModel):
     status: str
     source: str
 
-    model_config = ConfigDict(protected_namespaces=())
+    #model_config = ConfigDict(protected_namespaces=())
 
 
 class ChurnPredictionRequest(BaseModel):
@@ -82,7 +82,7 @@ def health():
 
 
 @app.post("/predict/churn", response_model=ChurnPredictionResponse)
-def predict_churn(payload: ChurnPredictionRequest, db: Session = Depends(get_db)):
+def predict_churn(payload: ChurnPredictionRequest):
     input_df = pd.DataFrame([{
         "department_name": payload.department_name,
         "gender": payload.gender,
@@ -102,7 +102,7 @@ def predict_churn(payload: ChurnPredictionRequest, db: Session = Depends(get_db)
 
     risk_level = "high" if probability >= 0.7 else "medium" if probability >= 0.4 else "low"
 
-    log_row = ChurnPredictionLog(
+    """log_row = ChurnPredictionLog(
         department_name=payload.department_name,
         gender=payload.gender,
         job_title=payload.job_title,
@@ -116,13 +116,8 @@ def predict_churn(payload: ChurnPredictionRequest, db: Session = Depends(get_db)
         churn_risk_label=risk_level,
         prediction_source="api"
     )
+    """
 
-    try:
-        db.add(log_row)
-        db.commit()
-    except Exception as e:
-        print(f"[DB] Failed to log prediction: {e}")
-        db.rollback()
 
     return {
         "churn_probability": round(float(probability), 4),

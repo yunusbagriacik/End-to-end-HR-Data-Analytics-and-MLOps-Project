@@ -12,6 +12,9 @@ jobs:
     permissions:
       contents: read
 
+    env:
+      IMAGE_NAME: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REPO }}/people-analytics-api:${{ github.sha }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,12 +31,10 @@ jobs:
         run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
 
       - name: Build Docker image
-        run: |
-          docker build -t ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REPO }}/people-analytics-api:${{ github.sha }} .
+        run: docker build -t $IMAGE_NAME .
 
       - name: Push Docker image
-        run: |
-          docker push ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REPO }}/people-analytics-api:${{ github.sha }}
+        run: docker push $IMAGE_NAME
 
       - name: Deploy to Cloud Run
         id: deploy
@@ -41,10 +42,10 @@ jobs:
         with:
           service: ${{ secrets.GCP_SERVICE_NAME }}
           region: ${{ secrets.GCP_REGION }}
-          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REPO }}/people-analytics-api:${{ github.sha }}
+          image: ${{ env.IMAGE_NAME }}
           flags: >-
             --allow-unauthenticated
-            --set-env-vars=DATABASE_URL=${{ secrets.DATABASE_URL }},CHURN_THRESHOLD=${{ secrets.CHURN_THRESHOLD }},LOCAL_MODEL_PATH=artifacts/churn_model.joblib
+            --set-env-vars=CHURN_THRESHOLD=${{ secrets.CHURN_THRESHOLD }},LOCAL_MODEL_PATH=artifacts/churn_model.joblib,PORT=8080
 
       - name: Show deployed URL
         run: echo "${{ steps.deploy.outputs.url }}"
