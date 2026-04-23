@@ -42,6 +42,9 @@ jobs:
           service: ${{ secrets.GCP_SERVICE_NAME }}
           region: ${{ secrets.GCP_REGION }}
           image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REPO }}/people-analytics-api:${{ github.sha }}
+          flags: >-
+            --allow-unauthenticated
+            --set-env-vars=DATABASE_URL=${{ secrets.DATABASE_URL }},CHURN_THRESHOLD=${{ secrets.CHURN_THRESHOLD }},LOCAL_MODEL_PATH=artifacts/churn_model.joblib
 
       - name: Show deployed URL
         run: echo "${{ steps.deploy.outputs.url }}"
