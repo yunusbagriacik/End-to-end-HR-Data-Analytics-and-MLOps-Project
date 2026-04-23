@@ -17,6 +17,8 @@ To sum up, an end-to-end MLOps system that predicts churn using HR data stored o
 - scikit-learn / XGBoost
 - Dash / Plotly
 - MLflow
+- CI/CD (GitHub Actions)
+- GCP - Cloud Run Deployment
 - PyCharm
 - DBeaver
 
