@@ -15,6 +15,8 @@ from app.ml.feature_builder import add_engineered_features
 
 app = FastAPI(title="People Analytics MLOps", version="0.1.0")
 
+mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+
 """ app = FastAPI(
     title="People Analytics MLOps",
     version="0.1.0",
@@ -27,7 +29,6 @@ app = FastAPI(title="People Analytics MLOps", version="0.1.0")
 #model = joblib.load("artifacts/churn_model.joblib")
 
 def load_model():
-    mlflow.set_tracking_uri = settings.mlflow_model_uri
     model_uri = settings.mlflow_model_uri
     local_model_path = settings.local_model_path
 
