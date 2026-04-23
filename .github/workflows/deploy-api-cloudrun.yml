@@ -45,7 +45,7 @@ jobs:
           image: ${{ env.IMAGE_NAME }}
           flags: >-
             --allow-unauthenticated
-            --set-env-vars=CHURN_THRESHOLD=${{ secrets.CHURN_THRESHOLD }},LOCAL_MODEL_PATH=artifacts/churn_model.joblib,PORT=8080
+            --set-env-vars=CHURN_THRESHOLD=${{ secrets.CHURN_THRESHOLD }},LOCAL_MODEL_PATH=artifacts/churn_model.joblib
 
       - name: Show deployed URL
         run: echo "${{ steps.deploy.outputs.url }}"
