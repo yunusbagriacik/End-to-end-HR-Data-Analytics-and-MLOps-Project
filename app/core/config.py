@@ -8,11 +8,12 @@ class Settings(BaseSettings): #Bu sınıf, çevresel değişkenleri Python nesne
     database_url: str | None = None # Cloud Run ilk deploy için DB zorunlu olmasın diye None yapıldı
     churn_threshold: float = 0.33692988753318787 # Modelin 0/1 kararını verdiği eşik.
 
-    mlflow_tracking_uri: str = "file:///app/mlruns" ## Localde farklı, Docker içinde farklı.
-    mlflow_model_uri: str = "models:/hr_churn_model@production"
-    local_model_path: str = "artifacts/churn_model.joblib"
+    mlflow_tracking_uri: str = "file:///app/mlruns" # Localde farklı, Docker içinde farklı.
+    mlflow_model_uri: str = "models:/hr_churn_model@production" # production alias’lı modeli okur
+    local_model_path: str = "artifacts/churn_model.joblib" # MLflow çalışmazsa fallback olarak kullanılacak model dosyası.
 
-
+    # ENV_FILE değişkeni verilirse onu okur.
+    # Verilmezse default olarak .env okur.
     model_config = SettingsConfigDict(
         env_file=os.getenv("ENV_FILE", ".env"),
         env_file_encoding="utf-8",
