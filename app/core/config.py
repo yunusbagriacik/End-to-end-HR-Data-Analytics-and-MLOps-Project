@@ -5,10 +5,10 @@ import os
 
 class Settings(BaseSettings): #Bu sınıf, çevresel değişkenleri Python nesnesine çevirir.
     ##Bunlar .env içindeki değerlerle doldurulur.
-    database_url: str | None = None
-    churn_threshold: float = 0.33692988753318787
+    database_url: str | None = None # Cloud Run ilk deploy için DB zorunlu olmasın diye None yapıldı
+    churn_threshold: float = 0.33692988753318787 # Modelin 0/1 kararını verdiği eşik.
 
-    mlflow_tracking_uri: str = "file:///app/mlruns"
+    mlflow_tracking_uri: str = "file:///app/mlruns" ## Localde farklı, Docker içinde farklı.
     mlflow_model_uri: str = "models:/hr_churn_model@production"
     local_model_path: str = "artifacts/churn_model.joblib"
 
