@@ -20,6 +20,7 @@ def add_engineered_features(df: pd.DataFrame) -> pd.DataFrame:
             if len(df) == 1:
                 df["salary_pct_in_dept"] = 0.5
             else:
+                # Çalışanın maaşının departman içindeki yüzdelik sırası
                 df["salary_pct_in_dept"] = df.groupby("department_name")["salary"].rank(pct=True)
 
     if "department_name" in df.columns and "dept_attrition_rate" not in df.columns:
